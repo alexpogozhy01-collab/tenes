@@ -1,0 +1,160 @@
+import pygame
+
+# Инициализация Pygame
+pygame.init()
+
+# Цвета
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GREEN = (100, 255, 40)
+
+# Создание окна
+window = pygame.display.set_mode((500, 500))
+window.fill(GREEN)
+
+class Area():
+    def __init__(self, x=0, y=0, width=10, height=10, color=None):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.fill_color = GREEN
+        if color:
+            self.fill_color = color
+            
+    def color(self, new_color):
+        self.fill_color = new_color
+        
+    def fill(self):
+        pygame.draw.rect(window, self.fill_color, self.rect)
+
+    def collidepoint(self, x, y):
+        return self.rect.collidepoint(x, y)
+    
+    def colliderect(self, rect):
+        return self.rect.colliderect(rect)
+
+class Label(Area):
+    def settext(self, text, fsize=12, text_color=(0, 0, 0)):
+        self.image = pygame.font.SysFont('verdana', fsize).render(text, True, text_color)
+    
+    def draw(self, shift_x=0, shift_y=0):
+        self.fill()
+        window.blit(self.image, (self.rect.x + shift_x, self.rect.y + shift_y))
+
+class Pictures(Area):
+    def __init__(self, file_name, x=0, y=0, width=10, height=10):
+        super().__init__(x, y, width, height, None)
+        self.image = pygame.image.load(file_name)
+    
+    def draw(self):
+        window.blit(self.image, (self.rect.x, self.rect.y))
+
+class GameSprite():
+    def __init__(self, x, y, filename, width=50, height=50):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.image = pygame.image.load(filename)
+        self.image = pygame.transform.scale(self.image, (width, height))
+    
+    def draw(self):
+        window.blit(self.image, (self.rect.x, self.rect.y))
+    
+    def move(self, dx, dy):
+        self.rect.x += dx
+        self.rect.y += dy
+
+# Создаем игровые объекты
+player1 = GameSprite(50, 250, 'platform.png', 60, 150)
+player2 = GameSprite(350, 250, 'platform.png', 60, 150)
+ball = GameSprite(250, 250, 'ball.png', 30, 30)
+
+# Параметры игры
+ball_speed_x = 3
+ball_speed_y = 3
+player_speed = 5
+
+# Основной игровой цикл
+clock = pygame.time.Clock()
+FPS = 60
+running = True
+game_over = False
+winner_text = ""
+
+while running:
+    # Контроль FPS
+    clock.tick(FPS)
+    
+    # Обработка событий
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        
+        # Выход по ESCAPE в любом состоянии
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+    
+    if not game_over:
+        # Игровая логика работает только если игра не закончена
+        keys = pygame.key.get_pressed()
+        
+        # Управление игроком 1 (W/S)
+        if keys[pygame.K_w] and player1.rect.y > 0:
+            player1.move(0, -player_speed)
+        if keys[pygame.K_s] and player1.rect.y < 500 - player1.rect.height:
+            player1.move(0, player_speed)
+        
+        # Управление игроком 2 (стрелки вверх/вниз)
+        if keys[pygame.K_UP] and player2.rect.y > 0:
+            player2.move(0, -player_speed)
+        if keys[pygame.K_DOWN] and player2.rect.y < 500 - player2.rect.height:
+            player2.move(0, player_speed)
+        
+        # Движение мяча
+        ball.move(ball_speed_x, ball_speed_y)
+        
+        # Отскок от стен
+        if ball.rect.y <= 0 or ball.rect.y >= 500 - ball.rect.height:
+            ball_speed_y *= -1
+        
+        # Отскок от платформ
+        if ball.rect.colliderect(player1.rect) or ball.rect.colliderect(player2.rect):
+            ball_speed_x *= -1
+        
+        # Проверка на выход за границы (гол)
+        if ball.rect.x <= 0:
+            game_over = True
+            winner_text = 'Выиграл игрок №2!'
+        
+        if ball.rect.x >= 500 - ball.rect.width:
+            game_over = True
+            winner_text = 'Выиграл игрок №1!'
+    
+    # Отрисовка
+    window.fill(GREEN)
+    
+    # Рисуем игровые объекты всегда
+    player1.draw()
+    player2.draw()
+    ball.draw()
+    
+    # Если игра закончена, показываем надпись
+    if game_over:
+        # Создаем затемнение фона
+        overlay = pygame.Surface((500, 500))
+        overlay.set_alpha(128)
+        overlay.fill(BLACK)
+        window.blit(overlay, (0, 0))
+        
+        # Создаем и отображаем текст победителя
+        font_big = pygame.font.SysFont('verdana', 40)
+        winner_surface = font_big.render(winner_text, True, WHITE)
+        text_rect = winner_surface.get_rect(center=(250, 200))
+        window.blit(winner_surface, text_rect)
+        
+        # Создаем и отображаем подсказку для выхода
+        font_small = pygame.font.SysFont('verdana', 20)
+        exit_hint = font_small.render('Нажмите ESCAPE для выхода', True, WHITE)
+        hint_rect = exit_hint.get_rect(center=(250, 300))
+        window.blit(exit_hint, hint_rect)
+    
+    pygame.display.flip()
+
+pygame.quit()
